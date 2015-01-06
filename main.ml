@@ -10,6 +10,10 @@ let rec zip =
          | (x :: xs, y :: ys) -> (x, y) :: zip (xs, ys)
          | (_, _)             -> raise INVALID_ARGUMENT
 
+let rec forall p =
+  function []        -> true
+         | (x :: xs) -> p x && forall p xs
+
 let rec exists f =
   function []        -> false
          | (y :: ys) -> if f y then true else exists f ys
@@ -136,6 +140,50 @@ and inner_norm r f ts =
   let u = T (f, map (norm r) ts) in
     try norm r (rewrite r u) with
       | NORM -> u
+
+type order =
+  | GR
+  | EQ
+  | NGE
+
+(* lex: order -> alpha list * beta list -> order *)
+let rec lex ord alpha_list_and_beta_list =
+  match alpha_list_and_beta_list with
+    | ([], [])           -> EQ
+    | (x :: xs, y :: ys) -> inner_lex (ord (x, y)) ord xs ys
+    | (_, _)             -> raise INVALID_ARGUMENT
+
+(* inner_lex: order -> alpha list -> beta list -> order *)
+and inner_lex o ord xs ys =
+  match o with
+    | GR  -> GR
+    | EQ  -> lex ord (xs, ys)
+    | NGE -> NGE
+
+let rec lpo ord st =
+  match st with
+    | (s, V x)
+      -> if s = V x then EQ
+         else if occurs x s then GR else NGE
+    | (V _, T _)
+      -> NGE
+    | (T (f, ss), T (g, ts))
+      -> if forall (fun si -> lpo ord (si, T (g, ts)) = NGE) ss
+         then inner_lpo (ord (f, g)) ord (T (f, ss)) ss ts
+         else GR
+
+and inner_lpo o ord s ss ts =
+  match o with
+    | GR
+      -> if forall (fun ti -> lpo ord (s, ti) = GR) ts
+         then GR else NGE
+    | EQ
+      -> if forall (fun ti -> lpo ord (s, ti) = GR) ts
+      then lex (lpo ord) (ss, ts)
+      else NGE
+    | NGE
+      -> NGE
+
 
 let main () =
   0;;
