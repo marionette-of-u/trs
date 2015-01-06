@@ -28,7 +28,7 @@ type term =
   | V of vname
   | T of string * term list
 
-type subst = (vname, term) Hashtbl.t
+type subst = (vname * term) list
 
 (* get_vname: vname * term -> vname *)
 let get_vname vt =
@@ -40,16 +40,19 @@ let get_term vt =
   match vt with
     | (v, t) -> t
 
-let empty_subst = Hashtbl.create 1
+let empty_subst = []
 
 (* add_subst: subst -> vname -> term -> subst *)
-let add_subst s x t = Hashtbl.add s x t; s
+let add_subst s x t = (x, t) :: s
 
 (* indom: vname -> subst -> bool *)
-let indom x s = Hashtbl.mem s x
+let indom x s = exists (fun (y, _) -> x = y) s
 
 (* app: subst -> vname -> term *)
-let app s v = Hashtbl.find s v
+let rec app s x =
+  match s with
+    | (y, t) :: rest -> if x = y then t else app rest x
+    | _              -> raise INVALID_ARGUMENT
 
 (* lift: subst -> term -> term *)
 let rec lift s t =
@@ -84,17 +87,8 @@ and elim x t rest s =
     else solve(map (fun (t1, t2) -> (xt t1, xt t2)) rest,
                  (x, t) :: (map (fun (y, u) -> (y, xt u)) s))
 
-(* internal_subst_to_hashtbl_subst: internal_subst -> subst *)
-let internal_subst_to_hashtbl_subst s =
-  let tbl = empty_subst in
-    for i = 1 to List.length s do
-      Hashtbl.add tbl (get_vname (nth (s, i))) (get_term (nth (s, i)))
-    done;
-    tbl
-
 (* unify: term * term -> subst *)
-let unify (t1, t2) =
-  internal_subst_to_hashtbl_subst (solve ([(t1, t2)], []))
+let unify (t1, t2) = solve ([(t1, t2)], [])
 
 (* matchs: (term * term) list -> subst -> subst *)
 let rec matchs ttlist s =
@@ -147,3 +141,4 @@ let main () =
   0;;
 
 main ()
+
