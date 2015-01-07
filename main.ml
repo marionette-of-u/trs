@@ -160,6 +160,7 @@ and inner_lex o ord xs ys =
     | EQ  -> lex ord (xs, ys)
     | NGE -> NGE
 
+(* lpo: (string * string -> order) -> (term * term) -> order *)
 let rec lpo ord st =
   match st with
     | (s, V x)
@@ -172,6 +173,7 @@ let rec lpo ord st =
          then inner_lpo (ord (f, g)) ord (T (f, ss)) ss ts
          else GR
 
+(* lpo: order -> (string * string -> order) -> term -> (term * term) -> order *)
 and inner_lpo o ord s ss ts =
   match o with
     | GR
@@ -184,6 +186,49 @@ and inner_lpo o ord s ss ts =
     | NGE
       -> NGE
 
+(* rename: int -> term -> term *)
+let rec rename n =
+  function (V (x, i))  -> V (x, i + n)
+         | (T (f, ts)) -> T (f, map (rename n) ts)
+
+(* maxs: int list -> int *)
+let rec maxs =
+  function (i :: is) -> max i (maxs is)
+         | []        -> 0
+
+(* maxindex: term -> int *)
+let rec maxindex =
+  function (V (x, i))  -> i
+         | (T (_, ts)) -> maxs (map maxindex ts)
+
+(* ccp: (term -> term) -> term * term -> term * term -> (term * term) list *)
+let ccp c tr l2r2 =
+  match tr with
+    | (t, r) -> match l2r2 with
+      | (l2, r2) ->
+          try
+            [(lift (unify (t, l2)) r, lift (unify (t, l2)) (c r2))]
+          with
+            | UNIFY -> []
+
+let rec ccps ttlist (l, r) =
+  let rec cps c =
+    function (V _, _)       -> []
+           | (T (f, ts), r) -> concat (map (ccp c (T (f, ts), r)) ttlist) @ (inner_cps c (f, [], ts, r))
+
+    and inner_cps c =
+      function (_, _, [], _)         -> []
+             | (f, ts0, t :: ts1, r)
+               -> let cf s = c (T (f, ts0 @ [s] @ ts1)) in
+                    (cps cf (t, r)) @ (inner_cps c (f, ts0 @ [t], ts1, r))
+
+    and m t = rename (maxs (map (fun (ts, us) -> max (maxindex ts) (maxindex us)) ttlist) + 1) t
+
+  in cps (fun t -> t) (m l, m r)
+
+let critical_pairs2 r1 r2 concat (map (ccps r1) r2)
+
+let critical_pairs r = critical_pairs2 r r
 
 let main () =
   0;;
