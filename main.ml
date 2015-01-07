@@ -207,9 +207,9 @@ and inner_lpo o ord s ss ts =
     | NGE
       -> NGE
 
-(* let lpo_functor (t, u) = (lpo (fun (a, b) -> int_to_order (String.compare a b))) (t, u) *)
+let lpo_functor (t, u) = (lpo (fun (a, b) -> int_to_order (String.compare a b))) (t, u)
 
-let lpo_functor (t, u) = print_string "compare "; print_term t; print_string " vs "; print_term u; print_string "\n"; (lpo (fun (a, b) -> print_string a; print_string ", "; print_string b; print_string " = "; print_int (String.compare a b); print_string "\n"; int_to_order (String.compare a b))) (t, u)
+let lpo_functor_debug (t, u) = print_string "compare "; print_term t; print_string " vs "; print_term u; print_string "\n"; (lpo (fun (a, b) -> print_string a; print_string ", "; print_string b; print_string " = "; print_int (String.compare a b); print_string "\n"; int_to_order (String.compare a b))) (t, u)
 
 (* rename: int -> term -> term *)
 let rec rename n =
@@ -365,9 +365,9 @@ let rule3 =
 let rule4 =
   (g (g vx vy) vz, g vx (g vy vz))
 
-(* G(F(i(x), 1), x) -> 1 *)
+(* G(F(x, i(1)), x) -> 1 *)
 let rule5 =
-  (g (f (i vx) one) vx, one)
+  (g (f vx (i one)) vx, one)
 
 (* G(1, x) -> x *)
 let rule6 =
@@ -397,11 +397,20 @@ let rule11 =
 let rule12 =
   (g vx vx, f vx (h one one))
 
-let test_complete () = print_ids (complete lpo_functor [
+(* F(0, 0) -> U *)
+let rule13 =
+  (f zero zero, u)
+
+(* G(F(x, i(y)), F(x, z)) -> F(x, H(i(y), z)) *)
+let rule14 =
+  (g (f vx (i vy)) (f vx vz), f vx (h (i vy) vz))
+
+let test_complete () = print_ids (complete lpo_functor_debug [
   rule1; rule2; rule3;
   rule4; rule5; rule6;
   rule7; rule8; rule9;
-  rule10; rule11; rule12])
+  rule10; rule11; rule12;
+  rule13; rule14])
 
 let main () = test_complete ();;
 
