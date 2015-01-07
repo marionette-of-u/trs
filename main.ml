@@ -207,7 +207,9 @@ and inner_lpo o ord s ss ts =
     | NGE
       -> NGE
 
-let lpo_functor (t, u) = (lpo (fun (a, b) -> int_to_order (String.compare a b))) (t, u)
+(* let lpo_functor (t, u) = (lpo (fun (a, b) -> int_to_order (String.compare a b))) (t, u) *)
+
+let lpo_functor (t, u) = print_string "compare "; print_term t; print_string " vs "; print_term u; print_string "\n"; (lpo (fun (a, b) -> print_string a; print_string ", "; print_string b; print_string " = "; print_int (String.compare a b); print_string "\n"; int_to_order (String.compare a b))) (t, u)
 
 (* rename: int -> term -> term *)
 let rec rename n =
@@ -291,9 +293,9 @@ let orient ord =
         -> let s' = norm (ids_r @ ids_s) s
            and t' = norm (ids_r @ ids_s) t
            in if s' = t' then ori (ids_e, ids_s, ids_r)
-              else if ord (s', t') = GR then ori (add_rule (s', t', ids_e, ids_s, ids_r))
-              else if ord (t', s') = GR then ori (add_rule (t', s', ids_e, ids_s, ids_r))
-              else raise FAIL
+                         else if ord (s', t') = GR then ori (add_rule (s', t', ids_e, ids_s, ids_r))
+                         else if ord (t', s') = GR then ori (add_rule (t', s', ids_e, ids_s, ids_r))
+                         else raise FAIL
   in ori
 
 let rec size t =
@@ -336,19 +338,70 @@ let ct  name   = T (name, [])
 let fn  name s = T (name, s)
 let var name   = V (name, 0)
 
-(* f(f(x, y), z) = f(x, f(y, z)) *)
+let h x y = fn  "H" [x; y]
+let g x y = fn  "G" [x; y]
+let f x y = fn  "F" [x; y]
+let i x   = fn  "i" [x]
+let vx    = var "x"
+let vy    = var "y"
+let vz    = var "z"
+let zero  = ct  "0"
+let one   = ct  "1"
+let u     = ct  "u"
+
+(* H(H(x, y), z) -> H(x, H(y, z)) *)
 let rule1 =
-  (fn "f" [(fn "f" [var "x"; var "y"]); var "z"], fn "f" [var "x"; (fn "f" [var "y"; var "z"])])
+  (h (h vx vy) vz, h vx (h vy vz))
 
-(* f(i(x), x) = e *)
+(* H(i(x), x) -> 0 *)
 let rule2 =
-  (fn "f" [fn "i" [var "x"]; var "x"], ct "e")
+  (h (i vx) vx, zero)
 
-(* f(e, x) = x *)
+(* H(0, x) -> x *)
 let rule3 =
-  (fn "f" [ct "e"; var "x"], var "x")
+  (h zero vx, vx)
 
-let test_complete () = print_ids (complete lpo_functor [rule1; rule2; rule3])
+(* G(G(x, y), z) -> G(x, G(y, z)) *)
+let rule4 =
+  (g (g vx vy) vz, g vx (g vy vz))
+
+(* G(F(i(x), 1), x) -> 1 *)
+let rule5 =
+  (g (f (i vx) one) vx, one)
+
+(* G(1, x) -> x *)
+let rule6 =
+  (g one vx, vx)
+
+(* G(0, x) -> 0 *)
+let rule7 =
+  (g zero vx, zero)
+
+(* F(x, 0) -> 1 *)
+let rule8 =
+  (f vx zero, one)
+
+(* F(x, 1) -> x *)
+let rule9 =
+  (f vx one, vx)
+
+(* G(F(x, y), F(x, z)) -> F(x, H(y, z)) *)
+let rule10 =
+  (g (f vx vy) (f vx vz), f vx (h vy vz ))
+
+(* H(x, x) -> G(H(1, 1), x) *)
+let rule11 =
+  (h vx vx, g (h one one) vx)
+
+(* G(x, x) -> F(x, H(1, 1)) *)
+let rule12 =
+  (g vx vx, f vx (h one one))
+
+let test_complete () = print_ids (complete lpo_functor [
+  rule1; rule2; rule3;
+  rule4; rule5; rule6;
+  rule7; rule8; rule9;
+  rule10; rule11; rule12])
 
 let main () = test_complete ();;
 
