@@ -226,9 +226,14 @@ let rec ccps ttlist (l, r) =
 
   in cps (fun t -> t) (m l, m r)
 
-let critical_pairs2 r1 r2 concat (map (ccps r1) r2)
+let critical_pairs2 r1 r2 = concat (map (ccps r1) r2)
 
 let critical_pairs r = critical_pairs2 r r
+
+let rec replace context t =
+  match context with
+    | []                  -> t
+    | ((f, ts, us) :: cs) -> replace cs (T (f, ts @ [t] @ us))
 
 let main () =
   0;;
