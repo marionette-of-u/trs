@@ -5,6 +5,11 @@ let rec nth =
          | (x :: xs, n) -> nth(xs, n - 1)
          | ([], _)      -> raise INVALID_ARGUMENT
 
+let null s =
+  match s with
+    | []       -> true
+    | (_ :: _) -> false
+
 let rec zip =
   function ([], [])           -> []
          | (x :: xs, y :: ys) -> (x, y) :: zip (xs, ys)
@@ -26,9 +31,9 @@ let rec concat =
   function []        -> []
          | (x :: xs) -> x @ (concat xs)
 
-let rec allapp f =
-  function []        -> 0
-         | (x :: xs) -> f x; allapp f xs
+let rec allapp f g =
+  function []        -> ()
+         | (x :: xs) -> f x; g xs; allapp f g xs
 
 type vname = string * int
 
@@ -38,8 +43,13 @@ type term =
 
 let rec print_term t =
   match t with
-    | (V (str, _)) -> print_string str; print_string " "; 0
-    | (T (str, s)) -> print_string str; print_string "("; allapp print_term s; print_string ") "; 0
+    | (V (str, _))
+      -> print_string str; ()
+    | (T (str, s))
+      -> print_string str;
+         if null s then () else print_string "(";
+         allapp print_term (fun s -> if null s then () else print_string ", ") s;
+         if null s then () else print_string ")"
 
 type subst = (vname * term) list
 
@@ -197,7 +207,7 @@ and inner_lpo o ord s ss ts =
     | NGE
       -> NGE
 
-let lpo_functor (t, u) = (lpo (fun (a, b) -> print_string "["; print_string a; print_string ", "; print_string b; print_string "]="; print_int (String.compare a b); print_string "\n"; int_to_order (String.compare a b))) (t, u)
+let lpo_functor (t, u) = (lpo (fun (a, b) -> int_to_order (String.compare a b))) (t, u)
 
 (* rename: int -> term -> term *)
 let rec rename n =
@@ -253,7 +263,7 @@ type ids = (term * term) list
 let rec print_ids ttlist =
   match ttlist with
     | (t, u) :: s -> print_term t; print_string " = "; print_term u; print_string "\n"; print_ids s
-    | [] -> 0
+    | [] -> ()
 
 exception FAIL
 
@@ -338,9 +348,9 @@ let rule2 =
 let rule3 =
   (fn "f" [ct "e"; var "x"], var "x")
 
-let test_complete = print_ids (complete lpo_functor [rule1; rule2; rule3])
+let test_complete () = print_ids (complete lpo_functor [rule1; rule2; rule3])
 
-let main () = test_complete; print_string "\n"; 0;;
+let main () = test_complete ();;
 
-main ();;
+main ()
 
