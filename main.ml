@@ -405,12 +405,10 @@ let rule13 =
 let rule14 =
   (g (f vx (i vy)) (f vx vz), f vx (h (i vy) vz))
 
-let test_complete () = print_ids (complete lpo_functor_debug [
+let test_complete () = print_ids (complete lpo_functor [
   rule1; rule2; rule3;
-  rule4; rule5; rule6;
-  rule7; rule8; rule9;
-  rule10; rule11; rule12;
-  rule13; rule14])
+  rule4;        rule6;
+  rule7; rule8; rule9])
 
 let main () = test_complete ();;
 
