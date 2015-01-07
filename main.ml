@@ -235,8 +235,76 @@ let rec replace context t =
     | []                  -> t
     | ((f, ts, us) :: cs) -> replace cs (T (f, ts @ [t] @ us))
 
-let main () =
-  0;;
+type ids = (term * term) list
 
-main ()
+exception FAIL
+
+let add_rule (l, r, ids_e, ids_s, ids_r) =
+  let rec simpl triple_ids =
+    match triple_ids with
+      | ([], e', r')
+        -> (e', r')
+      | ((g, d) :: u, e', u')
+        -> let g' = norm [(l, r)] g
+             in if g' = g
+             then let d' = norm ((l, r) :: ids_r @ ids_s) d
+             in simpl (u, e', (g, d') :: u')
+             else simpl (u, (g', d) :: ids_e, u')
+  in let (e', s') = simpl (ids_s, ids_e, [])
+  in let (e'', r') = simpl (ids_r, e', [])
+    in (e'', (l, r) :: s', r')
+
+let orient ord =
+  let rec ori triple_ids =
+    match triple_ids with
+      | ([], ids_s, ids_r)
+        -> (ids_s, ids_r)
+      | ((s, t) :: ids_e, ids_s, ids_r)
+        -> let s' = norm (ids_r @ ids_s) s
+           and t' = norm (ids_r @ ids_s) t
+           in if s' = t' then ori (ids_e, ids_s, ids_r)
+              else if ord (s', t') = GR then ori (add_rule (s', t', ids_e, ids_s, ids_r))
+              else if ord (t', s') = GR then ori (add_rule (t', s', ids_e, ids_s, ids_r))
+              else raise FAIL
+  in ori
+
+let rec size t =
+  match t with
+    | (V _)       -> 1
+    | (T (_, ts)) -> sizes ts + 1
+  and sizes ts =
+    match ts with
+      | []        -> 0
+      | (t :: ts) -> size t + sizes ts
+
+let rec min_rule tt_i_ids_ids =
+  match tt_i_ids_ids with
+    | (rl, n, [], r')
+      -> (rl, r')
+    | (rl, n, (l, r) :: rest, r')
+      -> let m = size l + size r
+           in if m < n then min_rule ((l, r), m, rest, rl :: r')
+                       else min_rule (rl, n, rest, (l, r) :: r')
+
+let choose ttlist =
+  match ttlist with
+    | ((l, r) :: rest) -> min_rule ((l, r), size l + size r, rest, [])
+    | _             -> raise INVALID_ARGUMENT
+
+let complete ord ids_e =
+  let rec compl esr =
+    match orient ord esr with
+      | ([], r')
+        -> r'
+      | (s', r')
+        -> let (rl, s'') = choose s'
+           in let cps = critical_pairs2 [rl] r' @
+                        critical_pairs2 r' [rl] @
+                        critical_pairs2 [rl] [rl]
+            in compl (cps, s'', rl :: r')
+  in compl (ids_e, [], [])
+
+let main () = 0;;
+
+main ();;
 
