@@ -146,6 +146,8 @@ type order =
   | EQ
   | NGE
 
+let int_to_order a = if a < 0 then GR else if a = 0 then EQ else NGE
+
 (* lex: order -> alpha list * beta list -> order *)
 let rec lex ord alpha_list_and_beta_list =
   match alpha_list_and_beta_list with
@@ -185,6 +187,8 @@ and inner_lpo o ord s ss ts =
       else NGE
     | NGE
       -> NGE
+
+let lpo_functor (t, u) = (lpo (fun (a, b) -> print_string "["; print_string a; print_string ", "; print_string b; print_string "]="; print_int (String.compare a b); print_string "\n"; int_to_order (String.compare a b))) (t, u)
 
 (* rename: int -> term -> term *)
 let rec rename n =
@@ -304,7 +308,25 @@ let complete ord ids_e =
             in compl (cps, s'', rl :: r')
   in compl (ids_e, [], [])
 
-let main () = 0;;
+let ct  name   = T (name, [])
+let fn  name s = T (name, s)
+let var name   = V (name, 0)
+
+(* f(f(x, y), z) = f(x, f(y, z)) *)
+let rule1 =
+  (fn "f" [(fn "f" [var "x"; var "y"]); var "z"], fn "f" [var "x"; (fn "f" [var "y"; var "z"])])
+
+(* f(i(x), x) = e *)
+let rule2 =
+  (fn "f" [fn "i" [var "x"]; var "x"], ct "e")
+
+(* f(e, x) = x *)
+let rule3 =
+  (fn "f" [ct "e"; var "x"], var "x")
+
+let test_complete = complete lpo_functor [rule1; rule2; rule3]
+
+let main () = test_complete;; 0;;
 
 main ();;
 
