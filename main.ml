@@ -26,11 +26,20 @@ let rec concat =
   function []        -> []
          | (x :: xs) -> x @ (concat xs)
 
+let rec allapp f =
+  function []        -> 0
+         | (x :: xs) -> f x; allapp f xs
+
 type vname = string * int
 
 type term =
   | V of vname
   | T of string * term list
+
+let rec print_term t =
+  match t with
+    | (V (str, _)) -> print_string str; print_string " "; 0
+    | (T (str, s)) -> print_string str; print_string "("; allapp print_term s; print_string ") "; 0
 
 type subst = (vname * term) list
 
@@ -146,7 +155,7 @@ type order =
   | EQ
   | NGE
 
-let int_to_order a = if a < 0 then GR else if a = 0 then EQ else NGE
+let int_to_order a = if a > 0 then GR else if a = 0 then EQ else NGE
 
 (* lex: order -> alpha list * beta list -> order *)
 let rec lex ord alpha_list_and_beta_list =
@@ -241,6 +250,11 @@ let rec replace context t =
 
 type ids = (term * term) list
 
+let rec print_ids ttlist =
+  match ttlist with
+    | (t, u) :: s -> print_term t; print_string " = "; print_term u; print_string "\n"; print_ids s
+    | [] -> 0
+
 exception FAIL
 
 let add_rule (l, r, ids_e, ids_s, ids_r) =
@@ -324,9 +338,9 @@ let rule2 =
 let rule3 =
   (fn "f" [ct "e"; var "x"], var "x")
 
-let test_complete = complete lpo_functor [rule1; rule2; rule3]
+let test_complete = print_ids (complete lpo_functor [rule1; rule2; rule3])
 
-let main () = test_complete;; 0;;
+let main () = test_complete; print_string "\n"; 0;;
 
 main ();;
 
